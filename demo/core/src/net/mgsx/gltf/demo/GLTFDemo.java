@@ -17,6 +17,8 @@ import com.badlogic.gdx.graphics.PerspectiveCamera;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.DirectionalLightsAttribute;
+import com.badlogic.gdx.graphics.g3d.environment.BaseLight;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
@@ -107,6 +109,8 @@ public class GLTFDemo extends ApplicationAdapter
 	private final BoundingBox sceneBox = new BoundingBox();
 	private SceneSkybox skybox;
 	
+	private DirectionalLight defaultLight;
+	
 	public GLTFDemo() {
 		this("models");
 	}
@@ -164,12 +168,6 @@ public class GLTFDemo extends ApplicationAdapter
 		
 		sceneManager.setSkyBox(skybox = new SceneSkybox(environmentCubemap));
 		
-		// light direction based on environnement map SUN
-		if(sceneManager.getDefaultLight() != null){
-			sceneManager.getDefaultLight().direction.set(-.5f,-.5f,-.7f).nor();
-			ui.lightDirectionControl.set(sceneManager.getDefaultLight().direction);
-		}
-
 		setEnvironment();
 	}
 	
@@ -343,24 +341,42 @@ public class GLTFDemo extends ApplicationAdapter
 	}
 	
 	protected void setShadow(boolean isOn) {
-		DirectionalLight oldLight = sceneManager.getDefaultLight();
-		boolean isShadowLight = oldLight instanceof DirectionalShadowLight;
-		DirectionalLight newLight = null;
 		
-		if(isOn && !isShadowLight){
-			newLight = new DirectionalShadowLight().setBounds(sceneBox);
-		}else if(!isOn && isShadowLight){
-			((DirectionalShadowLight)oldLight).dispose();
-			newLight = new DirectionalLight();
+		DirectionalLightsAttribute dla = sceneManager.environment.get(DirectionalLightsAttribute.class, DirectionalLightsAttribute.Type);
+		Array<BaseLight> lightsToRemove = new Array<BaseLight>();
+		Array<BaseLight> lightsToAdd = new Array<BaseLight>();
+		
+		if(dla != null){
+			for(DirectionalLight dl : dla.lights){
+				DirectionalLight oldLight = dl;
+				boolean isShadowLight = oldLight instanceof DirectionalShadowLight;
+				DirectionalLight newLight = null;
+				
+				if(isOn && !isShadowLight){
+					newLight = new DirectionalShadowLight().setBounds(sceneBox);
+				}else if(!isOn && isShadowLight){
+					((DirectionalShadowLight)oldLight).dispose();
+					newLight = new DirectionalLight();
+				}
+				
+				if(newLight != null){
+					newLight.direction.set(oldLight.direction);
+					newLight.color.set(oldLight.color);
+					lightsToRemove.add(oldLight);
+					lightsToAdd.add(newLight);
+					
+					if(oldLight == defaultLight){
+						defaultLight = newLight;
+					}
+				}
+			}
 		}
 		
-		if(newLight != null){
-			newLight.direction.set(oldLight.direction);
-			newLight.color.set(oldLight.color);
-			sceneManager.setDefaultLight(newLight);
-			
-			setShader(shaderMode);
-		}
+		sceneManager.environment.remove(lightsToRemove);
+		sceneManager.environment.add(lightsToAdd);
+		
+		// reload shaders	
+		setShader(shaderMode);
 	}
 
 	protected void setImage(ModelEntry entry) {
@@ -441,7 +457,10 @@ public class GLTFDemo extends ApplicationAdapter
 			sceneManager.removeScene(scene);
 			scene = null;
 		}
-		
+		if(defaultLight != null){
+			sceneManager.environment.remove(defaultLight);
+			defaultLight = null;
+		}
 	}
 	
 	private void load(ModelEntry entry, String variant) {
@@ -550,9 +569,13 @@ public class GLTFDemo extends ApplicationAdapter
 		
 		scene.modelInstance.calculateBoundingBox(sceneBox);
 		
-		DirectionalLight light = sceneManager.getDefaultLight();
-		if(light instanceof DirectionalShadowLight){
-			((DirectionalShadowLight)light).setBounds(sceneBox);
+		DirectionalLightsAttribute dla = sceneManager.environment.get(DirectionalLightsAttribute.class, DirectionalLightsAttribute.Type);
+		if(dla != null){
+			for(DirectionalLight dl : dla.lights){
+				if(dl instanceof DirectionalShadowLight){
+					((DirectionalShadowLight)dl).setBounds(sceneBox);
+				}
+			}
 		}
 		
 		ui.setMaterials(scene.modelInstance.materials);
@@ -561,10 +584,16 @@ public class GLTFDemo extends ApplicationAdapter
 		ui.setCameras(scene.cameras);
 		ui.setLights(scene.lights);
 		
+		sceneManager.addScene(scene);
+		if(scene.lights.size == 0){
+			// light direction based on environnement map SUN
+			defaultLight = new DirectionalLight().set(Color.WHITE, new Vector3(-.5f,-.5f,-.7f));
+			sceneManager.environment.add(defaultLight);
+			ui.lightDirectionControl.set(defaultLight.direction);
+		}
+		
 		// XXX force shader provider to compile new shaders based on model
 		setShader(shaderMode);
-		
-		sceneManager.addScene(scene, false);
 	}
 	
 	protected void setCamera(String name) 
@@ -640,17 +669,17 @@ public class GLTFDemo extends ApplicationAdapter
 		PBRShader.ScaleIBLAmbient.r = ui.debugAmbiantSlider.getValue() * IBLScale;
 		PBRShader.ScaleIBLAmbient.g = ui.debugSpecularSlider.getValue() * IBLScale;
 		
-		if(sceneManager.getDefaultLight() != null){
+		if(defaultLight != null){
 			float lum = ui.lightSlider.getValue();
-			sceneManager.getDefaultLight().color.set(lum, lum, lum, 1);
-			sceneManager.getDefaultLight().direction.set(ui.lightDirectionControl.value).nor();
-			sceneManager.getDefaultLight().color.r *= IBLScale;
-			sceneManager.getDefaultLight().color.g *= IBLScale;
-			sceneManager.getDefaultLight().color.b *= IBLScale;
-			
-			PBRFloatAttribute shadowBias = sceneManager.environment.get(PBRFloatAttribute.class, PBRFloatAttribute.ShadowBias);
-			shadowBias.value = ui.shadowBias.getValue() / 50f;
+			defaultLight.color.set(lum, lum, lum, 1);
+			defaultLight.direction.set(ui.lightDirectionControl.value).nor();
+			defaultLight.color.r *= IBLScale;
+			defaultLight.color.g *= IBLScale;
+			defaultLight.color.b *= IBLScale;
 		}
+		
+		PBRFloatAttribute shadowBias = sceneManager.environment.get(PBRFloatAttribute.class, PBRFloatAttribute.ShadowBias);
+		if(shadowBias != null) shadowBias.value = ui.shadowBias.getValue() / 50f;
 
 		sceneManager.render();
 		

@@ -48,7 +48,7 @@ abstract public class KHRLightsPunctual {
 	public static BaseLight map(GLTFLight light) {
 		if(GLTFLight.TYPE_DIRECTIONAL.equals(light.type)){
 			DirectionalLight dl = new DirectionalLight();
-			dl.color.set(GLTFTypes.mapColor(light.color, Color.WHITE));
+			dl.color.set(GLTFTypes.mapColor(light.color, Color.WHITE)).mul(light.intensity); // XXX not working for intensity above 1
 			return dl;
 		}else if(GLTFLight.TYPE_POINT.equals(light.type)){
 			PointLight pl = new PointLight();

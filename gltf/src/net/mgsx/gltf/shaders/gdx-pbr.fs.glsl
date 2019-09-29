@@ -479,41 +479,116 @@ void main() {
     vec3 n = getNormal();                             // normal at surface point
     vec3 v = surfaceToCamera / eyeDistance;        // Vector from surface point to camera
 
-    vec3 l = normalize(-u_dirLights[0].direction);             // Vector from surface point to light
-    vec3 h = normalize(l+v);                          // Half vector between both l and v
-    vec3 reflection = -normalize(reflect(v, n));
+#if(numDirectionalLights < 2)
+	vec3 l = normalize(-u_dirLights[0].direction);             // Vector from surface point to light
+	vec3 h = normalize(l+v);                          // Half vector between both l and v
+	vec3 reflection = -normalize(reflect(v, n));
 
-    float NdotL = clamp(dot(n, l), 0.001, 1.0);
-    float NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
-    float NdotH = clamp(dot(n, h), 0.0, 1.0);
-    float LdotH = clamp(dot(l, h), 0.0, 1.0);
-    float VdotH = clamp(dot(v, h), 0.0, 1.0);
+	float NdotL = clamp(dot(n, l), 0.001, 1.0);
+	float NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
+	float NdotH = clamp(dot(n, h), 0.0, 1.0);
+	float LdotH = clamp(dot(l, h), 0.0, 1.0);
+	float VdotH = clamp(dot(v, h), 0.0, 1.0);
 
-    PBRInfo pbrInputs = PBRInfo(
-        NdotL,
-        NdotV,
-        NdotH,
-        LdotH,
-        VdotH,
-        perceptualRoughness,
-        metallic,
-        specularEnvironmentR0,
-        specularEnvironmentR90,
-        alphaRoughness,
-        diffuseColor,
-        specularColor
-    );
+	PBRInfo pbrInputs = PBRInfo(
+		NdotL,
+		NdotV,
+		NdotH,
+		LdotH,
+		VdotH,
+		perceptualRoughness,
+		metallic,
+		specularEnvironmentR0,
+		specularEnvironmentR90,
+		alphaRoughness,
+		diffuseColor,
+		specularColor
+	);
 
-    // Calculate the shading terms for the microfacet specular shading model
-    vec3 F = specularReflection(pbrInputs);
-    float G = geometricOcclusion(pbrInputs);
-    float D = microfacetDistribution(pbrInputs);
+	// Calculate the shading terms for the microfacet specular shading model
+	vec3 F = specularReflection(pbrInputs);
+	float G = geometricOcclusion(pbrInputs);
+	float D = microfacetDistribution(pbrInputs);
 
-    // Calculation of analytical lighting contribution
-    vec3 diffuseContrib = (1.0 - F) * diffuse(pbrInputs);
-    vec3 specContrib = F * G * D / (4.0 * NdotL * NdotV);
-    // Obtain final intensity as reflectance (BRDF) scaled by the energy of the light (cosine law)
-    vec3 color = NdotL * u_dirLights[0].color * (diffuseContrib + specContrib);
+	// Calculation of analytical lighting contribution
+	vec3 diffuseContrib = (1.0 - F) * diffuse(pbrInputs);
+	vec3 specContrib = F * G * D / (4.0 * NdotL * NdotV);
+	// Obtain final intensity as reflectance (BRDF) scaled by the energy of the light (cosine law)
+	vec3 color = NdotL * u_dirLights[0].color * (diffuseContrib + specContrib);
+
+#else
+    // Directional lights
+    vec3 color = vec3(0.0, 0.0, 0.0);
+    for(int i=0 ; i<numDirectionalLights ; i++)
+    {
+    	DirectionalLight dirLight = u_dirLights[i];
+
+		vec3 l = normalize(-dirLight.direction);             // Vector from surface point to light
+		vec3 h = normalize(l+v);                          // Half vector between both l and v
+		vec3 reflection = -normalize(reflect(v, n));
+
+		float NdotL = clamp(dot(n, l), 0.001, 1.0);
+		float NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
+		float NdotH = clamp(dot(n, h), 0.0, 1.0);
+		float LdotH = clamp(dot(l, h), 0.0, 1.0);
+		float VdotH = clamp(dot(v, h), 0.0, 1.0);
+
+		PBRInfo pbrInputs = PBRInfo(
+			NdotL,
+			NdotV,
+			NdotH,
+			LdotH,
+			VdotH,
+			perceptualRoughness,
+			metallic,
+			specularEnvironmentR0,
+			specularEnvironmentR90,
+			alphaRoughness,
+			diffuseColor,
+			specularColor
+		);
+
+		// Calculate the shading terms for the microfacet specular shading model
+		vec3 F = specularReflection(pbrInputs);
+		float G = geometricOcclusion(pbrInputs);
+		float D = microfacetDistribution(pbrInputs);
+
+		// Calculation of analytical lighting contribution
+		vec3 diffuseContrib = (1.0 - F) * diffuse(pbrInputs);
+		vec3 specContrib = F * G * D / (4.0 * NdotL * NdotV);
+		// Obtain final intensity as reflectance (BRDF) scaled by the energy of the light (cosine law)
+		color += NdotL * dirLight.color * (diffuseContrib + specContrib);
+    }
+
+    // first dir light only XXX
+    DirectionalLight dirLight = u_dirLights[0];
+
+	vec3 l = normalize(-dirLight.direction);             // Vector from surface point to light
+	vec3 h = normalize(l+v);                          // Half vector between both l and v
+	vec3 reflection = -normalize(reflect(v, n));
+
+	float NdotL = clamp(dot(n, l), 0.001, 1.0);
+	float NdotV = clamp(abs(dot(n, v)), 0.001, 1.0);
+	float NdotH = clamp(dot(n, h), 0.0, 1.0);
+	float LdotH = clamp(dot(l, h), 0.0, 1.0);
+	float VdotH = clamp(dot(v, h), 0.0, 1.0);
+
+	PBRInfo pbrInputs = PBRInfo(
+		NdotL,
+		NdotV,
+		NdotH,
+		LdotH,
+		VdotH,
+		perceptualRoughness,
+		metallic,
+		specularEnvironmentR0,
+		specularEnvironmentR90,
+		alphaRoughness,
+		diffuseColor,
+		specularColor
+	);
+
+#endif
 
     // Calculate lighting contribution from image based lighting source (IBL)
 #if defined(USE_IBL)

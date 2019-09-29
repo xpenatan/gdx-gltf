@@ -1,21 +1,20 @@
 package net.mgsx.gltf.scene3d.scene;
 
 import com.badlogic.gdx.graphics.Camera;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.g3d.Environment;
 import com.badlogic.gdx.graphics.g3d.ModelBatch;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.DirectionalLightsAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.BaseLight;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.model.Node;
 import com.badlogic.gdx.graphics.g3d.utils.DepthShaderProvider;
 import com.badlogic.gdx.graphics.g3d.utils.ShaderProvider;
-import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ObjectMap.Entry;
 
 import net.mgsx.gltf.scene3d.lights.DirectionalShadowLight;
+import net.mgsx.gltf.scene3d.shaders.PBREnvironment;
 import net.mgsx.gltf.scene3d.shaders.PBRShaderProvider;
 
 /**
@@ -25,14 +24,15 @@ import net.mgsx.gltf.scene3d.shaders.PBRShaderProvider;
  *
  */
 public class SceneManager implements Disposable {
+	
+	private static final boolean MULTI_SHADOW_MAPS_SUPPORTED = false;
+	
 	private Array<Scene> scenes = new Array<Scene>();
 	
 	private ModelBatch batch;
 	private ModelBatch shadowBatch;
 	
-	private DirectionalLight defaultLight;
-	
-	public Environment environment;
+	public PBREnvironment environment;
 	
 	public Camera camera;
 
@@ -52,11 +52,7 @@ public class SceneManager implements Disposable {
 		
 		shadowBatch = new ModelBatch(depthShaderProvider);
 		
-		environment = new Environment();
-		
-		defaultLight = new DirectionalLight();
-		defaultLight.set(Color.WHITE, new Vector3(0,-1,0));
-		environment.add(defaultLight);
+		environment = new PBREnvironment();
 		
 		float lum = .5f;
 		environment.set(new ColorAttribute(ColorAttribute.AmbientLight, lum, lum, lum, 1));
@@ -109,19 +105,47 @@ public class SceneManager implements Disposable {
 	}
 	
 	protected void renderShadows(){
-		if(defaultLight instanceof DirectionalShadowLight){
-			DirectionalShadowLight shadowLight = (DirectionalShadowLight)defaultLight;
-			shadowLight.begin();
-			shadowBatch.begin(shadowLight.getCamera());
-			for(Scene scene : scenes){
-				shadowBatch.render(scene.modelInstance);
+		if(MULTI_SHADOW_MAPS_SUPPORTED){
+			// TODO render shadows for all directional lights (TODO configure which lights...)
+			environment.shadowMaps.clear();
+			DirectionalLightsAttribute dla = environment.get(DirectionalLightsAttribute.class, DirectionalLightsAttribute.Type);
+			if(dla != null){
+				for(DirectionalLight dl : dla.lights){
+					if(dl instanceof DirectionalShadowLight){
+						DirectionalShadowLight shadowLight = (DirectionalShadowLight)dl;
+						shadowLight.begin();
+						shadowBatch.begin(shadowLight.getCamera());
+						for(Scene scene : scenes){
+							shadowBatch.render(scene.modelInstance);
+						}
+						shadowBatch.end();
+						shadowLight.end();
+						
+						environment.shadowMaps.add(shadowLight);
+					}
+				}
 			}
-			shadowBatch.end();
-			shadowLight.end();
-			
-			environment.shadowMap = shadowLight;
 		}else{
 			environment.shadowMap = null;
+			
+			DirectionalLightsAttribute dla = environment.get(DirectionalLightsAttribute.class, DirectionalLightsAttribute.Type);
+			if(dla != null){
+				for(DirectionalLight dl : dla.lights){
+					if(dl instanceof DirectionalShadowLight){
+						DirectionalShadowLight shadowLight = (DirectionalShadowLight)dl;
+						shadowLight.begin();
+						shadowBatch.begin(shadowLight.getCamera());
+						for(Scene scene : scenes){
+							shadowBatch.render(scene.modelInstance);
+						}
+						shadowBatch.end();
+						shadowLight.end();
+						
+						environment.shadowMap = shadowLight;
+						break;
+					}
+				}
+			}
 		}
 	}
 	
@@ -172,16 +196,4 @@ public class SceneManager implements Disposable {
 		batch.dispose();
 	}
 
-	public DirectionalLight getDefaultLight() {
-		return defaultLight;
-	}
-
-	public void setDefaultLight(DirectionalLight light) 
-	{
-		if(defaultLight != null){
-			environment.remove(defaultLight);
-		}
-		defaultLight = light;
-		environment.add(defaultLight);
-	}
 }
