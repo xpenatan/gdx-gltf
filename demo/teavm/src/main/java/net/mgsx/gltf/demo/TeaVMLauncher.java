@@ -11,6 +11,7 @@ public class TeaVMLauncher {
         TeaApplicationConfiguration config = new TeaApplicationConfiguration("canvas");
         config.width = 0;
         config.height = 0;
+        config.showDownloadLogs = true;
         GLTFDemo models = new GLTFDemo("models");
         config.windowListener = new TeaWindowListener() {
             @Override

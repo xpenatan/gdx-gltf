@@ -4,7 +4,19 @@ include ":demo"
 include ":demo:core"
 include ":demo:desktop"
 // include ":demo:android"
-include ":demo:html"
+//include ":demo:html"
 include ":demo:teavm"
 
-include ":ibl-composer"
+//include ":ibl-composer"
+
+//includeBuild("E:\\Dev\\Projects\\java\\libgdx") {
+//    dependencySubstitution {
+//        substitute(module("com.badlogicgames.gdx:gdx")).using(project(":gdx"))
+//    }
+//}
+//
+//includeBuild("E:\\Dev\\Projects\\java\\gdx-teavm") {
+//    dependencySubstitution {
+//        substitute(module("com.github.xpenatan.gdx-teavm:backend-teavm")).using(project(":backends:backend-teavm"))
+//    }
+//}

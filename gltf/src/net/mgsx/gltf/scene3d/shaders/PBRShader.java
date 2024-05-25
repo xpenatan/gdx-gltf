@@ -522,9 +522,16 @@ public class PBRShader extends DefaultShader
 	public int u_viewportInv;
 	public int u_clippingPlane;
 	
-	public int u_csmSamplers;
-	public int u_csmPCFClip;
-	public int u_csmTransforms;
+	public int u_csmSamplers0;
+	public int u_csmSamplers1;
+	public int u_csmSamplers2;
+	public int u_csmSamplers3;
+	public int u_csmSamplers4;
+	public int u_csmSamplers5;
+	public int u_csmSamplers6;
+	public int u_csmSamplers7;
+	public int[] u_csmPCFClip;
+	public int[] u_csmTransforms;
 
 	private static final Matrix3 textureTransform = new Matrix3();
 	
@@ -691,10 +698,24 @@ public class PBRShader extends DefaultShader
 		u_morphTargets2 = program.fetchUniformLocation("u_morphTargets2", false);
 		
 		u_ambientLight = program.fetchUniformLocation("u_ambientLight", false);
-		
-		u_csmSamplers = program.fetchUniformLocation("u_csmSamplers", false);
-		u_csmPCFClip = program.fetchUniformLocation("u_csmPCFClip", false);
-		u_csmTransforms = program.fetchUniformLocation("u_csmTransforms", false);
+		u_csmSamplers0 = program.fetchUniformLocation("u_csmSamplers0", false);
+		u_csmSamplers1 = program.fetchUniformLocation("u_csmSamplers1", false);
+		u_csmSamplers2 = program.fetchUniformLocation("u_csmSamplers2", false);
+		u_csmSamplers3 = program.fetchUniformLocation("u_csmSamplers3", false);
+		u_csmSamplers4 = program.fetchUniformLocation("u_csmSamplers4", false);
+		u_csmSamplers5 = program.fetchUniformLocation("u_csmSamplers5", false);
+		u_csmSamplers6 = program.fetchUniformLocation("u_csmSamplers6", false);
+		u_csmSamplers7 = program.fetchUniformLocation("u_csmSamplers7", false);
+
+		int maxCascade = 8;
+		u_csmPCFClip = new int[maxCascade];
+		u_csmTransforms = new int[maxCascade];
+
+		for(int i = 0; i < maxCascade; i++) {
+			String index = "[" + i + "]";
+			u_csmPCFClip[i] = program.fetchUniformLocation("u_csmPCFClip" + index, false);
+			u_csmTransforms[i] = program.fetchUniformLocation("u_csmTransforms" + index, false);
+		}
 	}
 	
 	@Override
@@ -794,18 +815,41 @@ public class PBRShader extends DefaultShader
 		}
 		
 		CascadeShadowMapAttribute csmAttrib = attributes.get(CascadeShadowMapAttribute.class, CascadeShadowMapAttribute.Type);
-		if(csmAttrib != null && u_csmSamplers >= 0){
+		if(csmAttrib != null && u_csmSamplers0 >= 0){
 			Array<DirectionalShadowLight> lights = csmAttrib.cascadeShadowMap.lights;
 			for(int i=0 ; i<lights.size ; i++){
 				DirectionalShadowLight light = lights.get(i);
 				float mapSize = light.getDepthMap().texture.getWidth();
 				float pcf = 1.f / (2 * mapSize);
 				float clip = 3.f / (2 * mapSize);
-				
+
 				int unit = context.textureBinder.bind(light.getDepthMap());
-				program.setUniformi(u_csmSamplers + i, unit);
-				program.setUniformMatrix(u_csmTransforms + i, light.getProjViewTrans());
-				program.setUniformf(u_csmPCFClip + i, pcf, clip);
+				if(i == 0) {
+					program.setUniformi("u_csmSamplers0", unit);
+				}
+				else if(i == 1) {
+					program.setUniformi("u_csmSamplers1", unit);
+				}
+				else if(i == 2) {
+					program.setUniformi("u_csmSamplers2", unit);
+				}
+				else if(i == 3) {
+					program.setUniformi("u_csmSamplers3", unit);
+				}
+				else if(i == 4) {
+					program.setUniformi("u_csmSamplers4", unit);
+				}
+				else if(i == 5) {
+					program.setUniformi("u_csmSamplers5", unit);
+				}
+				else if(i == 6) {
+					program.setUniformi("u_csmSamplers6", unit);
+				}
+				else if(i == 7) {
+					program.setUniformi("u_csmSamplers7", unit);
+				}
+				program.setUniformMatrix(u_csmTransforms[i], light.getProjViewTrans());
+				program.setUniformf(u_csmPCFClip[i], pcf, clip);
 			}
 		}
 	}
