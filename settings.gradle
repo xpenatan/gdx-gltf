@@ -5,7 +5,7 @@ include ":demo:core"
 include ":demo:desktop"
 // include ":demo:android"
 //include ":demo:html"
-include ":demo:teavm"
+//include ":demo:teavm"
 
 //include ":ibl-composer"
 
