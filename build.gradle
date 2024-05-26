@@ -14,7 +14,7 @@ buildscript {
 }
 allprojects {
 
-    group = 'com.github.mgsx-dev.gdx-gltf'
+    group = 'com.github.xpenatan.gdx-gltf'
     version = '2.1.0'
     
     apply plugin: "eclipse"

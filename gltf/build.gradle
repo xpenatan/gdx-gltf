@@ -1,4 +1,4 @@
-eclipse.project.name = "gdx-gltf"
+eclipse.project.name = "core"
 
 dependencies {
     api "com.badlogicgames.gdx:gdx:$gdxVersion"
