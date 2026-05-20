@@ -28,7 +28,7 @@ configure(subprojects) {
 }
 subprojects {
     ext {
-    	gdxVersion = '1.9.11'
+    	gdxVersion = '1.14.1'
     	junitVersion = '4.12'
     }
     
